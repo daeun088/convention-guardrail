@@ -1,0 +1,37 @@
+name: Claude Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+    paths:
+      - 'src/**'
+      - 'package.json'
+
+jobs:
+  claude-review:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Run Claude Code Review
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            Review this pull request. Check for:
+            - Correctness bugs
+            - Adherence to the architecture in .claude/CLAUD.md — every
+              engine implements EngineInterface, every LLM provider
+              implements ProviderInterface, FSD layer-direction rules
+            - The feat(#issue-number) commit message convention
+              (.claude/skills/project-rules/SKILL.md)
+
+            Leave inline comments for concrete issues. Keep the summary
+            concise — don't restate the diff.
