@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for package.json
+        id: has-package
+        run: echo "exists=$(test -f package.json && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
+      - uses: pnpm/action-setup@v4
+        if: steps.has-package.outputs.exists == 'true'
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        if: steps.has-package.outputs.exists == 'true'
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        if: steps.has-package.outputs.exists == 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        if: steps.has-package.outputs.exists == 'true'
+        run: pnpm lint
+
+      - name: Typecheck
+        if: steps.has-package.outputs.exists == 'true'
+        run: pnpm typecheck
+
+      - name: Test
+        if: steps.has-package.outputs.exists == 'true'
+        run: pnpm test
+
+      - name: No package.json yet — skipping
+        if: steps.has-package.outputs.exists == 'false'
+        run: echo "package.json not present yet (pre-Phase-1 scaffold); nothing to run."

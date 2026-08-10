@@ -19,9 +19,14 @@ Creates a GitHub issue on `daeun088/convention-guardrail` via the `gh` CLI.
    - Do not guess scope — if the request is ambiguous, ask rather than filing
      a vague issue.
 
-2. **Title format**: plain, no type prefix needed in the title itself (GitHub
-   issues aren't commits), but keep it short and specific, e.g. "Add
-   same-layer cross-import rule" not "Fix stuff".
+2. **Title format**: prefix with the type in brackets, matching the commit
+   convention's types (see `project-rules` skill) — `[Feat]`, `[Fix]`,
+   `[Docs]`, `[Refactor]`, `[Test]`, `[Chore]`. The two existing templates use
+   `[Bug]` (maps to `fix`) and `[Feature]` (maps to `feat`) — keep those exact
+   labels when the corresponding template is used; use the commit-type
+   brackets for anything else, e.g. `[Chore] Add CI workflow`. Keep the rest
+   short and specific, e.g. `[Feature] Add same-layer cross-import rule`, not
+   "Fix stuff".
 
 3. **Body template**:
 
@@ -40,19 +45,36 @@ Creates a GitHub issue on `daeun088/convention-guardrail` via the `gh` CLI.
 
    Keep it lean — don't pad with sections that have nothing to say.
 
-4. **Create it**:
+4. **Create it** — always pass `--label` mapped from the issue type, so
+   nothing relies on remembering to add it later:
+
+   | type       | label           |
+   |------------|-----------------|
+   | `feat`     | `enhancement`   |
+   | `fix`      | `bug`           |
+   | `docs`     | `documentation` |
+   | `refactor` | `refactor`      |
+   | `test`     | `test`          |
+   | `chore`    | `chore`         |
 
    ```bash
    gh issue create --repo daeun088/convention-guardrail \
      --title "<title>" \
+     --label "<mapped-label>" \
      --body "$(cat <<'EOF'
    <body>
    EOF
    )"
    ```
 
-   Add `--label` if the repo has relevant labels set up (check with
-   `gh label list --repo daeun088/convention-guardrail` first if unsure).
+   If a label doesn't exist yet, create it first with `gh label create` (check
+   `gh label list --repo daeun088/convention-guardrail`) rather than skipping
+   it.
+
+   If the issue maps to one of the roadmap phases in `.claude/CLAUD.md`
+   (Phase 1–5), also pass `--milestone "Phase N — ..."` (check
+   `gh api repos/daeun088/convention-guardrail/milestones` for exact titles).
+   Repo-hygiene / meta issues that don't fit a phase can skip this.
 
 5. **Report back**: give the user the issue number and URL returned by `gh`.
    The issue number is what gets referenced in commits per the
