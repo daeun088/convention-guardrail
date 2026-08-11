@@ -1,0 +1,20 @@
+# FSD layer order, highest to lowest. A layer may only import from a
+# layer below it in this list.
+layers:
+  - app
+  - pages
+  - widgets
+  - features
+  - entities
+  - shared
+
+rules:
+  layer-direction:
+    enabled: true
+    severity: error
+  same-layer-cross-import:
+    enabled: true
+    severity: error
+  public-api:
+    enabled: true
+    severity: warning

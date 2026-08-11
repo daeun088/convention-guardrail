@@ -1,7 +1,37 @@
-// TODO(Phase 1, core types issue): define Rule, Violation, CheckResult, and EngineInterface here.
-// See .claude/CLAUD.md for the shapes these types must take:
-// - Rule: id, description, severity, layer/scope metadata
-// - Violation: file, line, ruleId, severity, message, suggestion?
-// - CheckResult: aggregated violations + summary for a single check run
-// - EngineInterface: check(files, config) => Promise<Violation[]>
-export {};
+export type Severity = 'error' | 'warning';
+
+export interface Rule {
+  id: string;
+  description: string;
+  severity: Severity;
+}
+
+export interface Violation {
+  file: string;
+  line: number;
+  ruleId: string;
+  severity: Severity;
+  message: string;
+  suggestion?: string;
+}
+
+export interface CheckResult {
+  violations: Violation[];
+  filesChecked: number;
+}
+
+export interface RuleConfig {
+  enabled: boolean;
+  severity?: Severity;
+}
+
+export interface GuardrailConfig {
+  /** FSD layer order, highest to lowest, e.g. ["app", "pages", ..., "shared"]. */
+  layers: string[];
+  rules: Record<string, RuleConfig>;
+}
+
+export interface EngineInterface {
+  readonly name: string;
+  check(files: string[], config: GuardrailConfig): Promise<Violation[]>;
+}
