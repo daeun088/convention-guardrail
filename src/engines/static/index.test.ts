@@ -61,4 +61,26 @@ describe('StaticEngine layer-direction rule', () => {
       file: filePath,
     });
   });
+
+  it('reports one violation for an import outside any recognized layer', async () => {
+    await mkdir(join(dir, 'lib'), { recursive: true });
+    await writeFile(join(dir, 'lib', 'helper.ts'), `export const helper = 'helper';\n`);
+
+    const filePath = join(dir, 'src', 'entities', 'user', 'consumer.ts');
+    await writeFile(
+      filePath,
+      `import { helper } from '../../../lib/helper.js';\nexport const consumer = helper;\n`,
+    );
+
+    const engine = new StaticEngine();
+    const violations = await engine.check([filePath, join(dir, 'lib', 'helper.ts')], config);
+
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toMatchObject({
+      ruleId: 'layer-direction',
+      severity: 'error',
+      file: filePath,
+    });
+    expect(violations[0]?.message).toMatch(/unrecognized layer/);
+  });
 });

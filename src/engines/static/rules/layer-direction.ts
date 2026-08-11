@@ -35,7 +35,17 @@ export function checkLayerDirection(sourceFile: SourceFile, config: GuardrailCon
     if (!targetFile) continue;
 
     const targetLayerIndex = findLayerIndex(targetFile.getFilePath(), layers);
-    if (targetLayerIndex === -1 || targetLayerIndex >= ownLayerIndex) continue;
+    if (targetLayerIndex === -1) {
+      violations.push({
+        file: sourceFile.getFilePath(),
+        line: importDeclaration.getStartLineNumber(),
+        ruleId: RULE_ID,
+        severity,
+        message: `Layer "${layers[ownLayerIndex]}" cannot import from an unrecognized layer (via "${importDeclaration.getModuleSpecifierValue()}")`,
+      });
+      continue;
+    }
+    if (targetLayerIndex >= ownLayerIndex) continue;
 
     violations.push({
       file: sourceFile.getFilePath(),
