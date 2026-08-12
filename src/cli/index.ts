@@ -6,6 +6,10 @@ import type { Violation } from '../core/types.js';
 import { StaticEngine } from '../engines/static/index.js';
 import { collectSourceFiles } from './files.js';
 
+/**
+ * Prints violations to stdout, one per line as `file:line  ruleId  message`,
+ * or a green "no violations" message when the list is empty.
+ */
 function printViolations(violations: Violation[]): void {
   if (violations.length === 0) {
     console.log(picocolors.green('No violations found.'));
