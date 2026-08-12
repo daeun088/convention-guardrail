@@ -13,3 +13,8 @@ Implemented:
   the same layer
 - `public-api.ts` — a slice must be imported via its `index` barrel, not its
   internals
+
+`same-layer-cross-import` and `public-api` skip any layer listed in config's
+`sliceLessLayers` (e.g. `shared`), since the segment right under those
+layers is a technical category (`ui`, `lib`, `api`), not a real slice
+boundary — see `guardrail.config.yaml`.

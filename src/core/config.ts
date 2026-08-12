@@ -27,7 +27,7 @@ export function validateConfig(parsed: unknown, path: string = DEFAULT_CONFIG_PA
     throw new Error(`Invalid config in "${path}": expected a YAML object at the top level.`);
   }
 
-  const { layers, rules } = parsed as Record<string, unknown>;
+  const { layers, sliceLessLayers, rules } = parsed as Record<string, unknown>;
 
   if (
     !Array.isArray(layers) ||
@@ -35,6 +35,19 @@ export function validateConfig(parsed: unknown, path: string = DEFAULT_CONFIG_PA
     !layers.every((layer) => typeof layer === 'string')
   ) {
     throw new Error(`Invalid config in "${path}": "layers" must be a non-empty array of strings.`);
+  }
+
+  if (sliceLessLayers !== undefined) {
+    if (!Array.isArray(sliceLessLayers) || !sliceLessLayers.every((layer) => typeof layer === 'string')) {
+      throw new Error(`Invalid config in "${path}": "sliceLessLayers" must be an array of strings.`);
+    }
+    for (const layer of sliceLessLayers) {
+      if (!layers.includes(layer)) {
+        throw new Error(
+          `Invalid config in "${path}": "sliceLessLayers" entry "${layer}" is not in "layers".`,
+        );
+      }
+    }
   }
 
   if (typeof rules !== 'object' || rules === null) {
@@ -65,6 +78,7 @@ export function validateConfig(parsed: unknown, path: string = DEFAULT_CONFIG_PA
 
   return {
     layers: layers as string[],
+    sliceLessLayers: (sliceLessLayers as string[] | undefined) ?? [],
     rules: validatedRules,
   };
 }

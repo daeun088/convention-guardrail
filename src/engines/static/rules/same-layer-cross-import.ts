@@ -11,11 +11,11 @@ const RULE_ID = 'same-layer-cross-import';
  * via a public API barrel.
  */
 export function checkSameLayerCrossImport(sourceFile: SourceFile, config: GuardrailConfig): Violation[] {
-  const { layers } = config;
+  const { layers, sliceLessLayers } = config;
   const severity: Severity = config.rules[RULE_ID]?.severity ?? 'error';
 
   const own = locateInFsd(sourceFile.getFilePath(), layers);
-  if (!own || own.slice === undefined) return [];
+  if (!own || own.slice === undefined || sliceLessLayers.includes(own.layer)) return [];
 
   const violations: Violation[] = [];
   for (const importDeclaration of sourceFile.getImportDeclarations()) {
@@ -23,7 +23,7 @@ export function checkSameLayerCrossImport(sourceFile: SourceFile, config: Guardr
     if (!targetFile) continue;
 
     const target = locateInFsd(targetFile.getFilePath(), layers);
-    if (!target || target.slice === undefined) continue;
+    if (!target || target.slice === undefined || sliceLessLayers.includes(target.layer)) continue;
     if (target.layerIndex !== own.layerIndex) continue;
     if (target.slice === own.slice) continue;
 

@@ -15,7 +15,7 @@ function isSliceBarrel(segmentsFromLayer: string[]): boolean {
  * your own slice are unaffected.
  */
 export function checkPublicApi(sourceFile: SourceFile, config: GuardrailConfig): Violation[] {
-  const { layers } = config;
+  const { layers, sliceLessLayers } = config;
   const severity: Severity = config.rules[RULE_ID]?.severity ?? 'warning';
 
   const own = locateInFsd(sourceFile.getFilePath(), layers);
@@ -27,7 +27,7 @@ export function checkPublicApi(sourceFile: SourceFile, config: GuardrailConfig):
     if (!targetFile) continue;
 
     const target = locateInFsd(targetFile.getFilePath(), layers);
-    if (!target || target.slice === undefined) continue;
+    if (!target || target.slice === undefined || sliceLessLayers.includes(target.layer)) continue;
 
     const sameSlice = target.layerIndex === own.layerIndex && target.slice === own.slice;
     if (sameSlice) continue;
