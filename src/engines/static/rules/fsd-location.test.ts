@@ -14,7 +14,7 @@ describe('locateInFsd', () => {
   });
 
   it('prefers the layer under "src" over an ancestor directory that happens to share a layer name', () => {
-    const location = locateInFsd('/home/features-team/project/src/entities/user/model.ts', layers);
+    const location = locateInFsd('/home/src/features/project/src/entities/user/model.ts', layers);
     expect(location).toMatchObject({ layer: 'entities', slice: 'user' });
   });
 
