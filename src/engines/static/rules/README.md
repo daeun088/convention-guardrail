@@ -11,8 +11,8 @@ Implemented:
   (`app → pages → widgets → features → entities → shared`)
 - `same-layer-cross-import.ts` — slice A must not directly import slice B on
   the same layer
-- `public-api.ts` — a slice must be imported via its `index` barrel, not its
-  internals
+- `public-api.ts` — cross-slice imports must use the target slice's `index`
+  barrel; imports within the same slice may use internal modules
 
 `same-layer-cross-import` and `public-api` skip any layer listed in config's
 `sliceLessLayers` (e.g. `shared`), since the segment right under those

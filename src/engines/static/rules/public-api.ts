@@ -5,6 +5,7 @@ import { locateInFsd } from './fsd-location.js';
 const RULE_ID = 'public-api';
 const BARREL_FILE_PATTERN = /^index\.(ts|tsx)$/;
 
+/** True if a file sits exactly at `<layer>/<slice>/index.ts(x)` — the slice's public API. */
 function isSliceBarrel(segmentsFromLayer: string[]): boolean {
   return segmentsFromLayer.length === 3 && BARREL_FILE_PATTERN.test(segmentsFromLayer[2]!);
 }
@@ -19,7 +20,7 @@ export function checkPublicApi(sourceFile: SourceFile, config: GuardrailConfig):
   const severity: Severity = config.rules[RULE_ID]?.severity ?? 'warning';
 
   const own = locateInFsd(sourceFile.getFilePath(), layers);
-  if (!own) return [];
+  if (!own || sliceLessLayers.includes(own.layer)) return [];
 
   const violations: Violation[] = [];
   for (const importDeclaration of sourceFile.getImportDeclarations()) {

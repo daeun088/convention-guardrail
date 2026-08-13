@@ -230,4 +230,56 @@ describe('StaticEngine sliceLessLayers exception', () => {
 
     expect(violations).toEqual([]);
   });
+
+  it('does not flag a cross-layer import into a sliceLessLayers layer\'s internals', async () => {
+    await mkdir(join(dir, 'src', 'features', 'foo'), { recursive: true });
+    await mkdir(join(dir, 'src', 'shared', 'lib'), { recursive: true });
+
+    await writeFile(join(dir, 'src', 'shared', 'lib', 'helper.ts'), `export const helper = 'helper';\n`);
+    const filePath = join(dir, 'src', 'features', 'foo', 'index.ts');
+    await writeFile(
+      filePath,
+      `import { helper } from '../../shared/lib/helper.js';\nexport const foo = helper;\n`,
+    );
+
+    const engine = new StaticEngine();
+    const violations = await engine.check(
+      [filePath, join(dir, 'src', 'shared', 'lib', 'helper.ts')],
+      config,
+    );
+
+    expect(violations).toEqual([]);
+  });
+
+  it('does not flag public-api violations when the importing file itself is in a sliceLessLayers layer', async () => {
+    // "widgets" is configured as slice-less here (unlike the default sample
+    // config, where only "shared" is). A widgets file importing directly
+    // into a sliced layer's internals (bypassing its barrel) should not be
+    // flagged by public-api just because the *source* layer has no slices.
+    const widgetsSliceLessConfig: GuardrailConfig = {
+      ...config,
+      sliceLessLayers: ['widgets'],
+    };
+
+    await mkdir(join(dir, 'src', 'widgets', 'header'), { recursive: true });
+    await mkdir(join(dir, 'src', 'entities', 'user'), { recursive: true });
+
+    await writeFile(
+      join(dir, 'src', 'entities', 'user', 'model.ts'),
+      `export interface UserModel { id: string }\n`,
+    );
+    const filePath = join(dir, 'src', 'widgets', 'header', 'index.ts');
+    await writeFile(
+      filePath,
+      `import type { UserModel } from '../../entities/user/model.js';\nexport type Header = UserModel;\n`,
+    );
+
+    const engine = new StaticEngine();
+    const violations = await engine.check(
+      [filePath, join(dir, 'src', 'entities', 'user', 'model.ts')],
+      widgetsSliceLessConfig,
+    );
+
+    expect(violations).toEqual([]);
+  });
 });
