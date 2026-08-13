@@ -7,8 +7,11 @@ import { StaticEngine } from './index.js';
 
 const config: GuardrailConfig = {
   layers: ['app', 'pages', 'widgets', 'features', 'entities', 'shared'],
+  sliceLessLayers: ['shared'],
   rules: {
     'layer-direction': { enabled: true, severity: 'error' },
+    'same-layer-cross-import': { enabled: true, severity: 'error' },
+    'public-api': { enabled: true, severity: 'warning' },
   },
 };
 
@@ -82,5 +85,201 @@ describe('StaticEngine layer-direction rule', () => {
       file: filePath,
     });
     expect(violations[0]?.message).toMatch(/unrecognized layer/);
+  });
+});
+
+describe('StaticEngine same-layer-cross-import rule', () => {
+  let dir: string;
+
+  beforeEach(async () => {
+    dir = await mkdtemp(join(tmpdir(), 'guardrail-static-'));
+    await mkdir(join(dir, 'src', 'features', 'foo'), { recursive: true });
+    await mkdir(join(dir, 'src', 'features', 'bar'), { recursive: true });
+  });
+
+  afterEach(async () => {
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it('reports no violation for an import within the same slice', async () => {
+    const filePath = join(dir, 'src', 'features', 'foo', 'index.ts');
+    await writeFile(join(dir, 'src', 'features', 'foo', 'helper.ts'), `export const helper = 'helper';\n`);
+    await writeFile(filePath, `import { helper } from './helper.js';\nexport const foo = helper;\n`);
+
+    const engine = new StaticEngine();
+    const violations = await engine.check(
+      [filePath, join(dir, 'src', 'features', 'foo', 'helper.ts')],
+      config,
+    );
+
+    expect(violations).toEqual([]);
+  });
+
+  it('reports one violation for a sibling-slice import on the same layer, even via its barrel', async () => {
+    await writeFile(join(dir, 'src', 'features', 'bar', 'index.ts'), `export const bar = 'bar';\n`);
+
+    const filePath = join(dir, 'src', 'features', 'foo', 'index.ts');
+    await writeFile(filePath, `import { bar } from '../bar/index.js';\nexport const foo = bar;\n`);
+
+    const engine = new StaticEngine();
+    const violations = await engine.check(
+      [filePath, join(dir, 'src', 'features', 'bar', 'index.ts')],
+      config,
+    );
+
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toMatchObject({
+      ruleId: 'same-layer-cross-import',
+      severity: 'error',
+      file: filePath,
+    });
+  });
+});
+
+describe('StaticEngine public-api rule', () => {
+  let dir: string;
+
+  beforeEach(async () => {
+    dir = await mkdtemp(join(tmpdir(), 'guardrail-static-'));
+    await mkdir(join(dir, 'src', 'entities', 'user'), { recursive: true });
+    await mkdir(join(dir, 'src', 'features', 'foo'), { recursive: true });
+  });
+
+  afterEach(async () => {
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it('reports no violation for a cross-slice import via the barrel', async () => {
+    await writeFile(join(dir, 'src', 'entities', 'user', 'index.ts'), `export const user = 'user';\n`);
+
+    const filePath = join(dir, 'src', 'features', 'foo', 'index.ts');
+    await writeFile(
+      filePath,
+      `import { user } from '../../entities/user/index.js';\nexport const foo = user;\n`,
+    );
+
+    const engine = new StaticEngine();
+    const violations = await engine.check(
+      [filePath, join(dir, 'src', 'entities', 'user', 'index.ts')],
+      config,
+    );
+
+    expect(violations).toEqual([]);
+  });
+
+  it('reports one violation for a cross-slice import that bypasses the barrel', async () => {
+    await writeFile(
+      join(dir, 'src', 'entities', 'user', 'model.ts'),
+      `export interface UserModel { id: string }\n`,
+    );
+
+    const filePath = join(dir, 'src', 'features', 'foo', 'index.ts');
+    await writeFile(
+      filePath,
+      `import type { UserModel } from '../../entities/user/model.js';\nexport type Foo = UserModel;\n`,
+    );
+
+    const engine = new StaticEngine();
+    const violations = await engine.check(
+      [filePath, join(dir, 'src', 'entities', 'user', 'model.ts')],
+      config,
+    );
+
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toMatchObject({
+      ruleId: 'public-api',
+      severity: 'warning',
+      file: filePath,
+    });
+  });
+});
+
+describe('StaticEngine sliceLessLayers exception', () => {
+  let dir: string;
+
+  beforeEach(async () => {
+    dir = await mkdtemp(join(tmpdir(), 'guardrail-static-'));
+  });
+
+  afterEach(async () => {
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it('does not flag cross-category imports within a sliceLessLayers layer, even nested per component', async () => {
+    // shared/ui and shared/lib are technical categories, not slices — and
+    // AppButton has its own subfolder, so the "slice" segment right under
+    // "shared" ("ui") is not where the real module boundary is.
+    await mkdir(join(dir, 'src', 'shared', 'ui', 'AppButton'), { recursive: true });
+    await mkdir(join(dir, 'src', 'shared', 'lib'), { recursive: true });
+
+    await writeFile(
+      join(dir, 'src', 'shared', 'ui', 'AppButton', 'AppButton.tsx'),
+      `export function AppButton() { return null; }\n`,
+    );
+    const filePath = join(dir, 'src', 'shared', 'lib', 'use-button.ts');
+    await writeFile(
+      filePath,
+      `import { AppButton } from '../ui/AppButton/AppButton.js';\nexport const useButton = AppButton;\n`,
+    );
+
+    const engine = new StaticEngine();
+    const violations = await engine.check(
+      [filePath, join(dir, 'src', 'shared', 'ui', 'AppButton', 'AppButton.tsx')],
+      config,
+    );
+
+    expect(violations).toEqual([]);
+  });
+
+  it('does not flag a cross-layer import into a sliceLessLayers layer\'s internals', async () => {
+    await mkdir(join(dir, 'src', 'features', 'foo'), { recursive: true });
+    await mkdir(join(dir, 'src', 'shared', 'lib'), { recursive: true });
+
+    await writeFile(join(dir, 'src', 'shared', 'lib', 'helper.ts'), `export const helper = 'helper';\n`);
+    const filePath = join(dir, 'src', 'features', 'foo', 'index.ts');
+    await writeFile(
+      filePath,
+      `import { helper } from '../../shared/lib/helper.js';\nexport const foo = helper;\n`,
+    );
+
+    const engine = new StaticEngine();
+    const violations = await engine.check(
+      [filePath, join(dir, 'src', 'shared', 'lib', 'helper.ts')],
+      config,
+    );
+
+    expect(violations).toEqual([]);
+  });
+
+  it('does not flag public-api violations when the importing file itself is in a sliceLessLayers layer', async () => {
+    // "widgets" is configured as slice-less here (unlike the default sample
+    // config, where only "shared" is). A widgets file importing directly
+    // into a sliced layer's internals (bypassing its barrel) should not be
+    // flagged by public-api just because the *source* layer has no slices.
+    const widgetsSliceLessConfig: GuardrailConfig = {
+      ...config,
+      sliceLessLayers: ['widgets'],
+    };
+
+    await mkdir(join(dir, 'src', 'widgets', 'header'), { recursive: true });
+    await mkdir(join(dir, 'src', 'entities', 'user'), { recursive: true });
+
+    await writeFile(
+      join(dir, 'src', 'entities', 'user', 'model.ts'),
+      `export interface UserModel { id: string }\n`,
+    );
+    const filePath = join(dir, 'src', 'widgets', 'header', 'index.ts');
+    await writeFile(
+      filePath,
+      `import type { UserModel } from '../../entities/user/model.js';\nexport type Header = UserModel;\n`,
+    );
+
+    const engine = new StaticEngine();
+    const violations = await engine.check(
+      [filePath, join(dir, 'src', 'entities', 'user', 'model.ts')],
+      widgetsSliceLessConfig,
+    );
+
+    expect(violations).toEqual([]);
   });
 });

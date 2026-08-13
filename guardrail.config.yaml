@@ -8,6 +8,12 @@ layers:
   - entities
   - shared
 
+# Layers with no real slice boundary — the segment right under "shared" is
+# a technical category (ui, lib, api, config), not a business-domain slice,
+# so same-layer-cross-import and public-api don't apply to it.
+sliceLessLayers:
+  - shared
+
 rules:
   layer-direction:
     enabled: true
