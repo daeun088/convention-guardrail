@@ -17,6 +17,36 @@ describe('validateConfig', () => {
     expect(config.rules['layer-direction']).toEqual({ enabled: true, severity: 'error' });
   });
 
+  it('defaults "sliceLessLayers" to an empty array when omitted', () => {
+    const config = validateConfig({ layers: ['shared'], rules: {} });
+    expect(config.sliceLessLayers).toEqual([]);
+  });
+
+  it('accepts a valid "sliceLessLayers" list', () => {
+    const config = validateConfig({
+      layers: ['features', 'entities', 'shared'],
+      sliceLessLayers: ['shared'],
+      rules: {},
+    });
+    expect(config.sliceLessLayers).toEqual(['shared']);
+  });
+
+  it('rejects a "sliceLessLayers" entry not present in "layers"', () => {
+    expect(() =>
+      validateConfig({
+        layers: ['features', 'entities'],
+        sliceLessLayers: ['shared'],
+        rules: {},
+      }),
+    ).toThrow(/"sliceLessLayers" entry "shared" is not in "layers"/);
+  });
+
+  it('rejects a "sliceLessLayers" that is not an array of strings', () => {
+    expect(() =>
+      validateConfig({ layers: ['shared'], sliceLessLayers: 'shared', rules: {} }),
+    ).toThrow(/"sliceLessLayers" must be an array of strings/);
+  });
+
   it('rejects a non-object top level', () => {
     expect(() => validateConfig(null)).toThrow(/expected a YAML object/);
     expect(() => validateConfig('not an object')).toThrow(/expected a YAML object/);
